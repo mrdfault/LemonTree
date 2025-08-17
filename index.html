@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Relationship Tracker</title>
+    <!-- Tailwind CSS for modern, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- D3.js for data visualization -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Custom styles for a clean look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container-box {
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            max-width: 48rem;
+            width: 100%;
+        }
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        .tab-btn.active {
+            background-color: #1f2937;
+            color: white;
+        }
+        input, select {
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            width: 100%;
+            transition: border-color 0.2s ease;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+        button {
+            transition: all 0.2s ease;
+        }
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        #graph-container {
+            width: 100%;
+            height: 24rem; /* Using h-96, which translates to 24rem or 384px */
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            background-color: #f9fafb;
+            position: relative;
+        }
+        #graph-svg {
+            width: 100%;
+            height: 100%;
+        }
+        .node circle {
+            stroke: #fff;
+            stroke-width: 1.5px;
+            transition: stroke-width 0.2s, stroke 0.2s;
+        }
+        .node circle:hover {
+            stroke: #3b82f6;
+            stroke-width: 4px;
+            cursor: grab;
+        }
+        .node text {
+            font-size: 12px;
+            fill: #333;
+            text-anchor: middle;
+            pointer-events: none; /* Make text non-interactive so you can click the circle */
+        }
+        .link {
+            stroke-opacity: 0.6;
+            stroke-width: 2px;
+        }
+        .link-text {
+            font-size: 10px;
+            fill: #555;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            pointer-events: none;
+        }
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 8px;
+            font: 12px sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="container-box">
+        <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Family Relationship Tracker</h1>
+
+        <!-- Tab Navigation -->
+        <div class="flex space-x-2 mb-8">
+            <button id="tab2Btn" class="tab-btn">Find Relationships</button>
+            <button id="tab3Btn" class="tab-btn">Visualize Relationships</button>
+        </div>
+
+        <!-- Find Relationships Tab Content -->
+        <div id="tab2Content" class="hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Find Connections</h2>
+            <div class="space-y-6">
+                <p class="text-gray-600">Select two individuals to discover their relationships.</p>
+                <!-- Two "squares" for person selection -->
+                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                    <div class="w-full sm:w-1/2 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                        <label for="person1Select" class="block text-gray-700 font-medium mb-1">Person 1:</label>
+                        <select id="person1Select" class="form-select"></select>
+                    </div>
+                    <div class="w-full sm:w-1/2 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                        <label for="person2Select" class="block text-gray-700 font-medium mb-1">Person 2:</label>
+                        <select id="person2Select" class="form-select"></select>
+                    </div>
+                </div>
+                <button id="findBtn" class="btn-primary w-full">Find Connections</button>
+                <div id="resultsDiv" class="mt-6 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                    <p class="text-gray-500">Results will appear here...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Visualize Relationships Tab Content -->
+        <div id="tab3Content" class="hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Visualize Relationships</h2>
+            <div class="space-y-6">
+                <p class="text-gray-600">Select a person to generate an interactive relationship graph.</p>
+                <div class="p-6 bg-gray-50 rounded-lg border border-gray-200">
+                    <label for="personGraphSelect" class="block text-gray-700 font-medium mb-1">Person to Visualize:</label>
+                    <select id="personGraphSelect" class="form-select"></select>
+                </div>
+                <button id="visualizeBtn" class="btn-primary w-full">Generate Graph</button>
+                <div id="graph-container" class="mt-6">
+                    <div id="tooltip" class="tooltip"></div>
+                    <svg id="graph-svg"></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main JavaScript Logic -->
+    <script>
+        // Use a simple self-executing function to avoid polluting the global scope
+        (function() {
+            // --- UI Elements and State ---
+            const tab2Btn = document.getElementById('tab2Btn');
+            const tab3Btn = document.getElementById('tab3Btn');
+            const tab2Content = document.getElementById('tab2Content');
+            const tab3Content = document.getElementById('tab3Content');
+
+            const person1Select = document.getElementById('person1Select');
+            const person2Select = document.getElementById('person2Select');
+            const findBtn = document.getElementById('findBtn');
+            const resultsDiv = document.getElementById('resultsDiv');
+            
+            const personGraphSelect = document.getElementById('personGraphSelect');
+            const visualizeBtn = document.getElementById('visualizeBtn');
+            const graphSvg = d3.select("#graph-svg");
+            const tooltip = d3.select("#tooltip");
+            const graphContainer = document.getElementById('graph-container');
+
+            // Hardcoded facts from user input
+            const initialFacts = [
+                { type: 'female', personA: 'kay' },
+                { type: 'female', personA: 'mg' },
+                { type: 'female', personA: 'ka' },
+                { type: 'male', personA: 'vlad' },
+                { type: 'female', personA: 'winter' },
+                { type: 'male', personA: 'ayoub' },
+                { type: 'female', personA: 'pasqual' },
+                { type: 'male', personA: 'paulo' },
+                { type: 'female', personA: 'marsa' },
+                { type: 'female', personA: 'princess' },
+                { type: 'male', personA: 'carl' },
+                { type: 'male', personA: 'cat' },
+                { type: 'female', personA: 'ace' },
+                { type: 'female', personA: 'st' },
+                { type: 'male', personA: 'gendalf' },
+                { type: 'male', personA: 'cryptor' },
+                { type: 'male', personA: 'nova' },
+                { type: 'male', personA: 'silly goose' },
+                { type: 'female', personA: 'donkey' },
+                { type: 'male', personA: 'gonkey' },
+                { type: 'male', personA: 'blunderbus' },
+                { type: 'male', personA: 'ale' },
+                { type: 'female', personA: 'yasi' },
+                { type: 'male', personA: 'furbie' },
+                { type: 'parent_of', personA: 'ka', personB: 'mg' },
+                { type: 'female', personA: 'mg' },
+                { type: 'parent_of', personA: 'vlad', personB: 'mg' },
+                { type: 'female', personA: 'mg' },
+                { type: 'parent_of', personA: 'mg', personB: 'princess' },
+                { type: 'female', personA: 'mg' },
+                { type: 'parent_of', personA: 'mg', personB: 'carl' },
+                { type: 'female', personA: 'mg' },
+                { type: 'parent_of', personA: 'mg', personB: 'silly goose' },
+                { type: 'female', personA: 'mg' },
+                { type: 'parent_of', personA: 'mg', personB: 'donkey' },
+                { type: 'female', personA: 'mg' },
+                { type: 'parent_of', personA: 'mg', personB: 'nova' },
+                { type: 'female', personA: 'mg' },
+                { type: 'parent_of', personA: 'mg', personB: 'yasi' },
+                { type: 'female', personA: 'mg' },
+                { type: 'sibling of', personA: 'mg', personB: 'furbie' },
+                { type: 'female', personA: 'mg' },
+                { type: 'parent_of', personA: 'ka', personB: 'mg' },
+                { type: 'female', personA: 'ka' },
+                { type: 'parent_of', personA: 'ka', personB: 'st' },
+                { type: 'female', personA: 'ka' },
+                { type: 'parent_of', personA: 'vlad', personB: 'mg' },
+                { type: 'male', personA: 'vlad' },
+                { type: 'parent_of', personA: 'vlad', personB: 'st' },
+                { type: 'male', personA: 'vlad' },
+                { type: 'parent_of', personA: 'vlad', personB: 'furbie' },
+                { type: 'male', personA: 'vlad' },
+                { type: 'sibling of', personA: 'vlad', personB: 'winter' },
+                { type: 'male', personA: 'vlad' },
+                { type: 'sibling of', personA: 'winter', personB: 'mg' },
+                { type: 'female', personA: 'winter' },
+                { type: 'sibling of', personA: 'winter', personB: 'vlad' },
+                { type: 'female', personA: 'winter' },
+                { type: 'sibling of', personA: 'winter', personB: 'ale' },
+                { type: 'female', personA: 'winter' },
+                { type: 'sibling of', personA: 'cat', personB: 'vlad' },
+                { type: 'male', personA: 'cat' },
+                { type: 'married to', personA: 'ace', personB: 'mg' },
+                { type: 'sibling of', personA: 'st', personB: 'mg' },
+                { type: 'female', personA: 'st' },
+                { type: 'parent_of', personA: 'gendalf', personB: 'st' },
+                { type: 'female', personA: 'st' },
+                { type: 'parent_of', personA: 'ka', personB: 'st' },
+                { type: 'female', personA: 'st' },
+                { type: 'parent_of', personA: 'gendalf', personB: 'cryptor' },
+                { type: 'male', personA: 'gendalf' },
+                { type: 'sibling of', personA: 'cryptor', personB: 'st' },
+                { type: 'male', personA: 'cryptor' },
+                { type: 'parent_of', personA: 'silly goose', personB: 'gonkey' },
+                { type: 'male', personA: 'silly goose' },
+                { type: 'parent_of', personA: 'mg', personB: 'donkey' },
+                { type: 'female', personA: 'donkey' },
+                { type: 'parent_of', personA: 'donkey', personB: 'gonkey' },
+                { type: 'female', personA: 'donkey' },
+                { type: 'sibling of', personA: 'ale', personB: 'winter' },
+                { type: 'male', personA: 'ale' },
+                { type: 'male', personA: 'ren' },
+                { type: 'parent_of', personA: 'ren', personB: 'ka' },
+                { type: 'male', personA: 'ren' },
+                { type: 'parent_of', personA: 'ren', personB: 'vlad' },
+                { type: 'male', personA: 'ren' },
+                { type: 'parent_of', personA: 'ren', personB: 'winter' },
+                { type: 'male', personA: 'ren' },
+                { type: 'parent_of', personA: 'ren', personB: 'ayoub' },
+                { type: 'male', personA: 'ren' },
+                { type: 'parent_of', personA: 'ren', personB: 'pasqual' },
+                { type: 'male', personA: 'ren' },
+                { type: 'parent_of', personA: 'ren', personB: 'paulo' },
+                { type: 'male', personA: 'ren' },
+                { type: 'male', personA: 'kokette' },
+                { type: 'parent_of', personA: 'ren', personB: 'kokette' },
+                { type: 'male', personA: 'ren' },
+                { type: 'parent_of', personA: 'ren', personB: 'marsa' },
+                { type: 'male', personA: 'ren' },
+                { type: 'married to', personA: 'ren', personB: 'mg' },
+            ];
+
+            const initialPeople = new Set();
+            initialFacts.forEach(fact => {
+                initialPeople.add(fact.personA);
+                if (fact.personB) initialPeople.add(fact.personB);
+            });
+            
+            // In-memory "database" to store relationships and a set for quick lookups
+            const facts = [];
+            
+            // A combined set of all people (initial and new)
+            const combinedPeople = new Set([...initialPeople]);
+
+            // --- Helper Functions for Prolog-like Logic ---
+            
+            function isFact(dataset, type, a, b = null) {
+                if (b) {
+                    if (type === 'married to' || type === 'sibling of') {
+                        // Check for relationship in both directions
+                        return dataset.some(f => 
+                            f.type === type && 
+                            ((f.personA === a.toLowerCase() && f.personB === b.toLowerCase()) || 
+                             (f.personA === b.toLowerCase() && f.personB === a.toLowerCase()))
+                        );
+                    }
+                    return dataset.some(f => f.type === type && f.personA === a.toLowerCase() && f.personB === b.toLowerCase());
+                } else {
+                    return dataset.some(f => f.type === type && f.personA === a.toLowerCase());
+                }
+            }
+            
+            function getFactsByType(dataset, type) {
+                return dataset.filter(f => f.type === type);
+            }
+            
+            function getParents(dataset, child) {
+                return getFactsByType(dataset, 'parent_of')
+                    .filter(f => f.personB === child.toLowerCase())
+                    .map(f => f.personA);
+            }
+
+            function isSibling(dataset, p1, p2) {
+                const parentsP1 = getParents(dataset, p1);
+                const parentsP2 = getParents(dataset, p2);
+                if (parentsP1.length === 0 || parentsP2.length === 0 || p1 === p2) {
+                    return false;
+                }
+                // Check for a common parent
+                return parentsP1.some(parent => parentsP2.includes(parent));
+            }
+            
+            // --- Find Connections Function ---
+            function findConnections(p1, p2) {
+                const foundRelationships = new Set();
+                const dataset = [...initialFacts];
+                
+                const isStepparent = (parent, child) => {
+                    const childParents = getParents(dataset, child);
+                    const isBiologicalParent = childParents.includes(parent.toLowerCase());
+                    const isMarriedToBiologicalParent = childParents.some(bioParent => isFact(dataset, 'married to', parent, bioParent));
+                    return isMarriedToBiologicalParent && !isBiologicalParent;
+                };
+
+                const isP1Male = isFact(dataset, 'male', p1);
+                const isP1Female = isFact(dataset, 'female', p1);
+            
+                if (isFact(dataset, 'parent_of', p1, p2)) {
+                    if (isP1Male) foundRelationships.add(`Father`);
+                    else if (isP1Female) foundRelationships.add(`Mother`);
+                    else foundRelationships.add(`Parent`);
+                }
+                
+                if (isFact(dataset, 'married to', p1, p2)) {
+                    if (p1 < p2) {
+                        foundRelationships.add(`Spouse`);
+                    } else {
+                        foundRelationships.add(`Spouse`);
+                    }
+                }
+                
+                if (isFact(dataset, 'parent_of', p2, p1)) {
+                    if (isP1Male) foundRelationships.add(`Son`);
+                    else if (isP1Female) foundRelationships.add(`Daughter`);
+                    else foundRelationships.add(`Child`);
+                }
+                
+                if (isSibling(dataset, p1, p2)) {
+                    foundRelationships.add(`Sibling`);
+                }
+            
+                const parentsP2 = getParents(dataset, p2);
+                for (const parent of parentsP2) {
+                    if (isFact(dataset, 'parent_of', p1, parent)) {
+                        if (isP1Male) foundRelationships.add(`Grandfather`);
+                        else if (isP1Female) foundRelationships.add(`Grandmother`);
+                        else foundRelationships.add(`Grandparent`);
+                    }
+                }
+                const parentsP1 = getParents(dataset, p1);
+                for (const parent of parentsP1) {
+                    if (isFact(dataset, 'parent_of', p2, parent)) {
+                        if (isP1Male) foundRelationships.add(`Grandson`);
+                        else if (isP1Female) foundRelationships.add(`Granddaughter`);
+                        else foundRelationships.add(`Grandchild`);
+                    }
+                }
+            
+                const p2Parents = getParents(dataset, p2);
+                for (const p2Parent of p2Parents) {
+                    if (isSibling(dataset, p1, p2Parent)) {
+                        if (isP1Male) foundRelationships.add(`Uncle`);
+                        else if (isP1Female) foundRelationships.add(`Aunt`);
+                    }
+                    const p2ParentSiblings = dataset.filter(f => isSibling(dataset, p2Parent, f.personA)).map(f => f.personA);
+                    for (const sibling of p2ParentSiblings) {
+                        if (isFact(dataset, 'married to', p1, sibling)) {
+                            if (isP1Male) foundRelationships.add(`Uncle`);
+                            else if (isP1Female) foundRelationships.add(`Aunt`);
+                        }
+                    }
+                }
+            
+                const p1Parents = getParents(dataset, p1);
+                for (const p1Parent of p1Parents) {
+                    if (isSibling(dataset, p2, p1Parent)) {
+                        if (isP1Male) foundRelationships.add(`Nephew`);
+                        else if (isP1Female) foundRelationships.add(`Niece`);
+                    }
+                    const p1ParentSiblings = dataset.filter(f => isSibling(dataset, p1Parent, f.personA)).map(f => f.personA);
+                    for (const sibling of p1ParentSiblings) {
+                        if (isFact(dataset, 'married to', p2, sibling)) {
+                            if (isP1Male) foundRelationships.add(`Nephew`);
+                            else if (isP1Female) foundRelationships.add(`Niece`);
+                        }
+                    }
+                }
+
+                if (!isSibling(dataset, p1, p2)) {
+                    const p1Grandparents = p1Parents.flatMap(p => getParents(dataset, p));
+                    const p2Grandparents = parentsP2.flatMap(p => getParents(dataset, p));
+                    const hasCommonGrandparent = p1Grandparents.some(gp => p2Grandparents.includes(gp));
+                    if (hasCommonGrandparent) {
+                        foundRelationships.add(`Cousin`);
+                    }
+                }
+                
+                if (isStepparent(p1, p2)) {
+                    if (isP1Male) foundRelationships.add(`Stepfather`);
+                    else if (isP1Female) foundRelationships.add(`Stepmother`);
+                }
+                if (isStepparent(p2, p1)) {
+                    if (isP1Male) foundRelationships.add(`Stepson`);
+                    else if (isP1Female) foundRelationships.add(`Stepdaughter`);
+                }
+
+                return Array.from(foundRelationships);
+            }
+            
+            // --- New D3.js Visualization Logic ---
+            const relationshipColors = {
+                'Mother': '#F472B6',
+                'Father': '#3B82F6',
+                'Parent': '#3B82F6',
+                'Spouse': '#F59E0B',
+                'Sibling': '#10B981',
+                'Son': '#3B82F6',
+                'Daughter': '#F472B6',
+                'Child': '#3B82F6',
+                'Grandmother': '#F472B6',
+                'Grandfather': '#3B82F6',
+                'Grandparent': '#3B82F6',
+                'Grandson': '#3B82F6',
+                'Granddaughter': '#F472B6',
+                'Grandchild': '#3B82F6',
+                'Aunt': '#F472B6',
+                'Uncle': '#3B82F6',
+                'Niece': '#F472B6',
+                'Nephew': '#3B82F6',
+                'Cousin': '#7C3AED',
+                'Stepfather': '#3B82F6',
+                'Stepmother': '#F472B6',
+                'Stepson': '#3B82F6',
+                'Stepdaughter': '#F472B6'
+            };
+            
+            const secondDegreeRelationships = new Set([
+                'Grandfather', 'Grandmother', 'Grandparent', 'Grandson', 'Granddaughter', 'Grandchild',
+                'Uncle', 'Aunt', 'Niece', 'Nephew', 'Cousin', 'Stepfather', 'Stepmother', 'Stepson', 'Stepdaughter'
+            ]);
+
+            function createVisualizationData(startPerson) {
+                const allData = [...initialFacts];
+                const nodes = new Map();
+                const links = new Map();
+                const centralPerson = startPerson.toLowerCase();
+
+                nodes.set(centralPerson, { id: centralPerson });
+                
+                const allPeople = new Set(allData.flatMap(f => [f.personA, f.personB].filter(Boolean)));
+                
+                allPeople.forEach(person => {
+                    if (person !== centralPerson) {
+                        // REVERSED: Get the relationship OF THE CENTRAL PERSON to the other person
+                        const relations = findConnections(centralPerson, person);
+                        if (relations.length > 0) {
+                            nodes.set(person, { id: person });
+                            
+                            const linkId = `${centralPerson}-${person}`;
+                            if (!links.has(linkId)) {
+                                links.set(linkId, {
+                                    source: centralPerson,
+                                    target: person,
+                                    relationships: [],
+                                    isSecondLayer: false
+                                });
+                            }
+                            
+                            const link = links.get(linkId);
+                            relations.forEach(rel => {
+                                if (!link.relationships.includes(rel)) {
+                                     link.relationships.push(rel);
+                                }
+                                if (secondDegreeRelationships.has(rel)) {
+                                    link.isSecondLayer = true;
+                                }
+                            });
+                        }
+                    }
+                });
+                
+                const uniqueNodes = Array.from(nodes.values());
+                const uniqueLinks = Array.from(links.values());
+                
+                return { nodes: uniqueNodes, links: uniqueLinks };
+            }
+
+            function renderGraph(data) {
+                const width = graphContainer.clientWidth;
+                const height = graphContainer.clientHeight;
+                graphSvg.html(""); // Clear any existing graph
+
+                // D3 Force Simulation for positioning nodes
+                // forceManyBody().strength(-400) creates a repulsion force between nodes, pushing them apart.
+                // forceLink() attracts connected nodes based on the distance.
+                // forceCenter() pulls all nodes towards the center of the SVG.
+                const simulation = d3.forceSimulation(data.nodes)
+                    .force("link", d3.forceLink(data.links).id(d => d.id).distance(d => d.isSecondLayer ? 200 : 100).strength(0.5))
+                    .force("charge", d3.forceManyBody().strength(-300)) // Adjusted repulsion force
+                    .force("center", d3.forceCenter(width / 2, height / 2));
+                
+                // Draw the links (lines) between nodes
+                const link = graphSvg.append("g")
+                    .attr("class", "links")
+                    .selectAll("line")
+                    .data(data.links)
+                    .enter().append("line")
+                    .attr("class", "link")
+                    .attr("stroke", d => {
+                        const firstRel = d.relationships[0];
+                        return relationshipColors[firstRel] || '#999';
+                    });
+
+                // Draw the relationship labels on the links
+                const linkLabelGroup = graphSvg.append("g")
+                    .attr("class", "link-labels")
+                    .selectAll("g")
+                    .data(data.links)
+                    .enter().append("g");
+                    
+                linkLabelGroup.selectAll("text")
+                    .data(d => d.relationships.map((rel, i) => ({ rel, index: i, link: d })))
+                    .enter().append("text")
+                    .attr("class", "link-text")
+                    .text(d => d.rel)
+                    .attr("dy", (d, i) => `${i * 1.5}em`);
+
+                // Draw the nodes (circles and text)
+                const node = graphSvg.append("g")
+                    .attr("class", "nodes")
+                    .selectAll("g")
+                    .data(data.nodes)
+                    .enter().append("g")
+                    .attr("class", "node")
+                    .call(d3.drag()
+                        .on("start", dragstarted)
+                        .on("drag", dragged)
+                        .on("end", dragended));
+                
+                node.append("circle")
+                    .attr("r", 20) // Increased node size for easier clicking
+                    .attr("fill", d => isFact([...initialFacts], 'male', d.id) ? "#3b82f6" : "#f472b6")
+                    .on("mouseover", function(event, d) {
+                        tooltip.style("opacity", 1)
+                               .html(`<strong>${d.id}</strong>`)
+                               .style("left", (event.pageX + 10) + "px")
+                               .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function() {
+                        tooltip.style("opacity", 0);
+                    });
+                
+                node.append("text")
+                    .attr("dy", 35)
+                    .text(d => d.id);
+                
+                // Update node and link positions on each simulation tick
+                simulation.on("tick", () => {
+                    link.attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+                    
+                    linkLabelGroup.attr("transform", d => {
+                        const x = (d.source.x + d.target.x) / 2;
+                        const y = (d.source.y + d.target.y) / 2;
+                        return `translate(${x}, ${y})`;
+                    });
+
+                    node.attr("transform", d => {
+                        // Keep nodes within the bounds of the SVG
+                        d.x = Math.max(50, Math.min(width - 50, d.x));
+                        d.y = Math.max(50, Math.min(height - 50, d.y));
+                        return `translate(${d.x},${d.y})`;
+                    });
+                });
+                
+                // Drag event handlers
+                function dragstarted(event, d) {
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    d.fx = d.x; // Fix the node's position on start
+                    d.fy = d.y;
+                }
+                
+                function dragged(event, d) {
+                    d.fx = event.x; // Update the fixed position during drag
+                    d.fy = event.y;
+                }
+                
+                function dragended(event, d) {
+                    if (!event.active) simulation.alphaTarget(0);
+                    d.fx = null; // Release the fixed position on end
+                    d.fy = null;
+                }
+            }
+            
+            function updatePersonDropdowns() {
+                const peopleFind = Array.from(initialPeople).sort();
+                person1Select.innerHTML = `<option value="">-- Select Person --</option>`;
+                person2Select.innerHTML = `<option value="">-- Select Person --</option>`;
+                personGraphSelect.innerHTML = `<option value="">-- Select Person --</option>`;
+                peopleFind.forEach(person => {
+                    person1Select.innerHTML += `<option value="${person}">${person}</option>`;
+                    person2Select.innerHTML += `<option value="${person}">${person}</option>`;
+                    personGraphSelect.innerHTML += `<option value="${person}">${person}</option>`;
+                });
+            }
+
+            // --- Event Listeners and Core Logic ---
+            function showTab(tabToShow) {
+                tab2Content.classList.add('hidden');
+                tab3Content.classList.add('hidden');
+                
+                tab2Btn.classList.remove('active');
+                tab3Btn.classList.remove('active');
+                
+                if (tabToShow === 'tab2') {
+                    tab2Content.classList.remove('hidden');
+                    tab2Btn.classList.add('active');
+                } else {
+                    tab3Content.classList.remove('hidden');
+                    tab3Btn.classList.add('active');
+                }
+            }
+            tab2Btn.addEventListener('click', () => showTab('tab2'));
+            tab3Btn.addEventListener('click', () => showTab('tab3'));
+
+            findBtn.addEventListener('click', () => {
+                const person1 = person1Select.value;
+                const person2 = person2Select.value;
+                
+                if (!person1 || !person2) {
+                    resultsDiv.innerHTML = `<p class="text-red-500">Please select both people to find a connection.</p>`;
+                    return;
+                }
+                
+                if (person1 === person2) {
+                    resultsDiv.innerHTML = `<p class="text-red-500">Please select two different people.</p>`;
+                    return;
+                }
+
+                const results = findConnections(person1, person2);
+
+                if (results.length > 0) {
+                    let html = `<h3 class="text-xl font-semibold mb-2 text-gray-700">Connections Found:</h3>`;
+                    html += `<ul class="list-disc list-inside space-y-1 text-gray-600">`;
+                    results.forEach(result => {
+                        html += `<li>${person1} is the ${result.toLowerCase()} of ${person2}.</li>`;
+                    });
+                    html += `</ul>`;
+                    resultsDiv.innerHTML = html;
+                } else {
+                    resultsDiv.innerHTML = `<p class="text-gray-500">No connections were found between ${person1} and ${person2}.</p>`;
+                }
+            });
+            
+            visualizeBtn.addEventListener('click', () => {
+                const selectedPerson = personGraphSelect.value;
+                if (!selectedPerson) {
+                    graphSvg.html(`<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="16px" fill="#ef4444">Please select a person to visualize.</text>`);
+                    return;
+                }
+                const data = createVisualizationData(selectedPerson);
+                if (data.nodes.length <= 1) {
+                    graphSvg.html(`<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="16px" fill="#333">No relationships found for ${selectedPerson}.</text>`);
+                } else {
+                    renderGraph(data);
+                }
+            });
+
+            showTab('tab3');
+            updatePersonDropdowns();
+        })();
+    </script>
+</body>
+</html>
